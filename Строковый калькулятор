@@ -1,0 +1,152 @@
+import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
+import java.util.Stack;
+import java.util.HashMap;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner console = new Scanner(System.in);
+        String input = console.nextLine();
+
+        Pattern dPattern = Pattern.compile("d\\d+");
+        ArrayList<String> expressions = new ArrayList<>();
+        expressions.add(input);
+
+        for (int i = 0; i < 100; i++) {
+            expressions = stringDecomposition(expressions, dPattern);
+        }
+
+        Pattern generalPattern = Pattern.compile("d\\d|\\d+|\\+|-|\\*|\\(|\\)");
+        Stack<Lexeme> operatorStack = new Stack();
+        Stack<Lexeme> operandStack = new Stack();
+
+        HashMap<Integer, Integer> answers = new HashMap<>();
+
+        for (String currentString : expressions) {
+            Matcher generalMatcher = generalPattern.matcher(currentString);
+
+            while (generalMatcher.find()) {
+                Lexeme symbol = new Lexeme();
+
+                // Складывает числа в стек чисел
+                if (Pattern.matches("\\d+",generalMatcher.group())) {
+                    symbol.value = Integer.parseInt(generalMatcher.group());
+                    symbol.type = '0';
+                    operandStack.push(symbol);
+                    continue;
+                }
+                // Складывает операторы в стек операторов
+                if (Pattern.matches("[\\+\\-\\*]",generalMatcher.group())) {
+                    if (operatorStack.isEmpty()) {
+                        symbol.value = 0;
+                        symbol.type = generalMatcher.group().charAt(0);
+                        operatorStack.push(symbol);
+                        continue;
+                    }
+                    else if (operatorPriority(generalMatcher.group().charAt(0)) > operatorPriority(operatorStack.peek().type)) {
+                        symbol.value = 0;
+                        symbol.type = generalMatcher.group().charAt(0);
+                        operatorStack.push(symbol);
+                        continue;
+                    }
+                    else if (operatorPriority(generalMatcher.group().charAt(0)) <= operatorPriority(operatorStack.peek().type)) {
+                        symbol.value = 0;
+                        symbol.type = generalMatcher.group().charAt(0);
+                        math(operandStack,operatorStack);
+                        operatorStack.push(symbol);
+                        continue;
+                    }
+
+                }
+                else if (Pattern.matches("\\(", generalMatcher.group())) {
+                    symbol.value = 0;
+                    symbol.type = generalMatcher.group().charAt(0);
+                    operatorStack.push(symbol);
+                    continue;
+                }
+                else if (Pattern.matches("\\)", generalMatcher.group())) {
+                    while (operatorStack.peek().type != '(') {
+                        math(operandStack,operatorStack);
+                    }
+                    operatorStack.pop();
+                    continue;
+                }
+            }
+
+            while (!operatorStack.isEmpty()) {
+                math(operandStack, operatorStack);
+            }
+
+            System.out.println(operandStack.pop().value);
+        }
+    }
+
+    private static class Lexeme {
+        char type; // 0 для чисел, {"+", "-", "*"} для операций
+        int value;
+
+        public Lexeme() {
+            this.type = '0';
+            this.value = 0;
+        }
+    }
+
+    private static void math(Stack<Lexeme> operandStack, Stack<Lexeme> operatorStack) {
+        Lexeme symbol = new Lexeme();
+        char type = operatorStack.pop().type;
+
+        switch (type) {
+            case '+':
+                symbol.type = '0';
+                symbol.value = operandStack.pop().value + operandStack.pop().value;
+                break;
+            case '-':
+                symbol.type = '0';
+                symbol.value = (operandStack.pop().value - operandStack.pop().value) * (-1);
+                break;
+            case '*':
+                symbol.type = '0';
+                symbol.value = operandStack.pop().value * operandStack.pop().value;
+                break;
+        }
+        operandStack.push(symbol);
+    }
+
+    private static byte operatorPriority(char operator) {
+        if (operator == '+' || operator == '-') return 1;
+        else if (operator == '*') return 2;
+
+        return 0;
+    }
+
+    private static ArrayList<String> stringDecomposition(ArrayList<String> expressions, Pattern dPattern) {
+        ArrayList<String> newExpressions = new ArrayList<>();
+
+        for (String currentString : expressions) {
+            Matcher dMatcherInArrayList = dPattern.matcher(currentString);
+
+            if (dMatcherInArrayList.find()) {
+
+                String firstHalf = currentString.substring(0, dMatcherInArrayList.start());
+                String secondHalf = currentString.substring(dMatcherInArrayList.end());
+
+                String dCount = dMatcherInArrayList.group().substring(1);
+                String expression;
+
+                for (int i = 1; i <= Integer.parseInt(dCount); i++) {
+                    expression = firstHalf + i + secondHalf;
+                    newExpressions.add(expression);
+                }
+
+                newExpressions.remove(currentString);
+            }
+            else {
+                newExpressions = expressions;
+            }
+        }
+
+        return newExpressions;
+    }
+}
